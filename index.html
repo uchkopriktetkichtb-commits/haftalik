@@ -303,14 +303,15 @@ $("camS").onclick=async()=>{
  if(camMode==="photo"){photos.push(await snap());thumbs($("tPhoto"),photos);camTitle();return}
  if(camMode==="paper"){const b=await snap();$("camM").classList.add("hid");const r=await cropImage(b);if(r){paper.push(r);thumbs($("tPaper"),paper)}$("camM").classList.remove("hid");camTitle();return}
  if(!rec){const mime=["video/mp4;codecs=avc1.42E01F,mp4a.40.2","video/mp4","video/webm;codecs=vp8,opus","video/webm"].find(m=>MediaRecorder.isTypeSupported(m));
-  rec=new MediaRecorder(camStream,{mimeType:mime,videoBitsPerSecond:1000000,audioBitsPerSecond:64000});recParts=[];
+  const v=$("camV"),W=v.videoWidth||1280,H=v.videoHeight||720,cv=document.createElement("canvas");cv.width=W;cv.height=H;const cx=cv.getContext("2d");window.__dv=setInterval(()=>{const vw=v.videoWidth,vh=v.videoHeight;if(!vw)return;const s=Math.max(W/vw,H/vh),dw=vw*s,dh=vh*s;cx.drawImage(v,(W-dw)/2,(H-dh)/2,dw,dh)},33);const cs=cv.captureStream(30);window.__cs=cs;rec=new MediaRecorder(new MediaStream([...cs.getVideoTracks(),...camStream.getAudioTracks()]),{mimeType:mime,videoBitsPerSecond:1000000,audioBitsPerSecond:64000});recParts=[];
   rec.ondataavailable=e=>e.data.size&&recParts.push(e.data);
-  rec.onstop=()=>{clearInterval(recTimer);const b=new Blob(recParts,{type:mime.split(";")[0]});b.cam=true;b.ext=mime.includes("mp4")?"mp4":"webm";
+  rec.onstop=()=>{clearInterval(recTimer);clearInterval(window.__dv);window.__cs&&window.__cs.getTracks().forEach(x=>x.stop());const b=new Blob(recParts,{type:mime.split(";")[0]});b.cam=true;b.ext=mime.includes("mp4")?"mp4":"webm";
    if(b.size){video=b;$("tVideo").textContent="✓ Видео ёзилди ("+mb(b.size)+")"}rec=null;closeCam()};
   rec.start(1000);recT0=Date.now();recTimer=setInterval(camTitle,500);$("camS").style.borderRadius="18px";camTitle()}
  else rec.stop()};
 $("camD").onclick=closeCam;$("camX").onclick=closeCam;
-const oc=m=>{camFacing="user";openCam(m)};$("cPaper").onclick=()=>oc("paper");$("cPhoto").onclick=()=>oc("photo");$("cVideo").onclick=()=>oc("video");$("camF").onclick=async()=>{if(rec)return;camFacing=camFacing==="user"?"environment":"user";const m=camMode;camStream&&camStream.getTracks().forEach(x=>x.stop());camStream=null;camLock&&camLock.release&&camLock.release();camLock=null;await openCam(m)};
+const oc=m=>{camFacing="user";openCam(m)};$("cPaper").onclick=()=>oc("paper");$("cPhoto").onclick=()=>oc("photo");$("cVideo").onclick=()=>oc("video");async function swapVideo(){const ns=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:camFacing},width:{ideal:1280},height:{ideal:720}}});camStream.getVideoTracks().forEach(x=>{x.stop();camStream.removeTrack(x)});ns.getVideoTracks().forEach(x=>camStream.addTrack(x));const v=$("camV");v.srcObject=null;v.srcObject=camStream;v.style.transform=camFacing==="user"?"scaleX(-1)":"";try{await v.play()}catch(e){}}
+$("camF").onclick=async()=>{if(rec){camFacing=camFacing==="user"?"environment":"user";try{await swapVideo()}catch(e){toast("Камера алмашмади: "+e.message,false)}return}camFacing=camFacing==="user"?"environment":"user";const m=camMode;camStream&&camStream.getTracks().forEach(x=>x.stop());camStream=null;camLock&&camLock.release&&camLock.release();camLock=null;await openCam(m)};
 
 $("bSave").onclick=async()=>{
  if(!paper.length&&!photos.length&&!video){toast("Расм ёки видео танланг",false);return}
