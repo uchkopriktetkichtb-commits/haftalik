@@ -313,18 +313,25 @@ $("camD").onclick=closeCam;$("camX").onclick=closeCam;
 const oc=m=>{camFacing="user";openCam(m)};$("cPaper").onclick=()=>oc("paper");$("cPhoto").onclick=()=>oc("photo");$("cVideo").onclick=()=>oc("video");async function swapVideo(){const ns=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:camFacing},width:{ideal:1280},height:{ideal:720}}});camStream.getVideoTracks().forEach(x=>{x.stop();camStream.removeTrack(x)});ns.getVideoTracks().forEach(x=>camStream.addTrack(x));const v=$("camV");v.srcObject=null;v.srcObject=camStream;v.style.transform=camFacing==="user"?"scaleX(-1)":"";try{await v.play()}catch(e){}}
 $("camF").onclick=async()=>{if(rec){camFacing=camFacing==="user"?"environment":"user";try{await swapVideo()}catch(e){toast("Камера алмашмади: "+e.message,false)}return}camFacing=camFacing==="user"?"environment":"user";const m=camMode;camStream&&camStream.getTracks().forEach(x=>x.stop());camStream=null;camLock&&camLock.release&&camLock.release();camLock=null;await openCam(m)};
 
+let editN=null;
 $("bSave").onclick=async()=>{
  if(!paper.length&&!photos.length&&!video){toast("Расм ёки видео танланг",false);return}
  $("bSave").disabled=true;let lock=null;try{lock=await navigator.wakeLock?.request("screen")}catch(e){}
- try{const n=nextN(),files=[];let info="";
-  if(paper.length){$("prog").textContent="📄 PDF тайёрланмоқда…";const pdf=await makePdf(paper.map(p=>p.blob));await dbPut("f",fkey(n+".pdf"),pdf);files.push(n+".pdf")}
-  for(let k=0;k<photos.length;k++){$("prog").textContent="📷 Расмлар сиқилмоқда: "+(k+1)+"/"+photos.length;const nm=n+","+(k+1)+".jpg";await dbPut("f",fkey(nm),await compressPhoto(photos[k]));files.push(nm)}
+ try{const old=editN?meta.items.find(i=>i.n===editN):null;const n=old?old.n:nextN();const files=[];let info="";
+  if(paper.length){$("prog").textContent="📄 PDF тайёрланмоқда…";
+   const newPages=paper.map(p=>p.blob);let pages=(old&&await dbGet("f",fkey(n+".__pages")))||[];
+   if(old&&old.files.includes(n+".pdf")&&!pages.length){let k=2;while(old.files.includes(n+"-"+k+".pdf"))k++;const nm=n+"-"+k+".pdf";await dbPut("f",fkey(nm),await makePdf(newPages));files.push(nm)}
+   else{pages=pages.concat(newPages);await dbPut("f",fkey(n+".__pages"),pages);await dbPut("f",fkey(n+".pdf"),await makePdf(pages));if(!old||!old.files.includes(n+".pdf"))files.push(n+".pdf")}}
+  const start=old?old.photos:0;
+  for(let k=0;k<photos.length;k++){$("prog").textContent="📷 Расмлар сиқилмоқда: "+(k+1)+"/"+photos.length;const nm=n+","+(start+k+1)+".jpg";await dbPut("f",fkey(nm),await compressPhoto(photos[k]));files.push(nm)}
   if(video){let out={blob:video,ext:video.cam?video.ext:((video.name||"").match(/\.(\w+)$/)||[,"mp4"])[1].toLowerCase()};
    if(!video.cam)try{const r=await compressVideo(video);if(r.blob.size>0&&r.blob.size<video.size)out=r}catch(e){toast("Видео сиқилмади, асл ҳолида сақланди",false)}
-   const nm=n+"."+out.ext;await dbPut("f",fkey(nm),out.blob);files.push(nm);info=" Видео "+mb(video.size)+" → "+mb(out.blob.size)}
-  meta.items.push({n,date:$("day").value,files,pages:paper.length,photos:photos.length,video:!!video});await saveMeta();
+   const vc=old?(old.vcount||(old.video?1:0)):0;const nm=vc?n+"-"+(vc+1)+"."+out.ext:n+"."+out.ext;await dbPut("f",fkey(nm),out.blob);files.push(nm);info=" Видео "+mb(video.size)+" → "+mb(out.blob.size)}
+  if(old){old.files=old.files.concat(files);old.pages=(old.pages||0)+paper.length;old.photos=(old.photos||0)+photos.length;if(video){old.vcount=(old.vcount||(old.video?1:0))+1;old.video=true}}
+  else meta.items.push({n,date:$("day").value,files,pages:paper.length,photos:photos.length,video:!!video,vcount:video?1:0});
+  await saveMeta();
   paper=[];photos=[];video=null;thumbs($("tPaper"),paper);thumbs($("tPhoto"),photos);$("tVideo").textContent="";
-  renderAll();toast("№"+n+" сақланди."+info)}
+  editN=null;renderAll();toast("№"+n+(old?" га қўшилди.":" сақланди.")+info)}
  catch(e){toast("Хато: "+e.message,false)}
  $("prog").textContent="";$("bSave").disabled=false;lock&&lock.release&&lock.release()};
 
@@ -333,12 +340,12 @@ async function delLast(){const it=meta.items[meta.items.length-1];if(!await ask(
 
 // ---------- кўрсатиш ----------
 function renderAll(){
- $("nextN").textContent=nextN();$("cnt").textContent=meta.items.length;
+ $("nextN").textContent=editN?editN+" — давоми":nextN();$("cnt").textContent=meta.items.length;
  const L=$("list");L.innerHTML="";
  meta.items.forEach((it,k)=>{const d=document.createElement("div");d.className="item";const [y,m,dd]=it.date.split("-");
   const p=[];if(it.pages)p.push("PDF "+it.pages+" бет");if(it.photos)p.push(it.photos+" расм");if(it.video)p.push("видео");
   d.innerHTML=`<div><b>№${it.n}</b> · ${dd}.${m}<br><span class="note">${p.join(", ")}</span></div>`;
-  if(k===meta.items.length-1){const b=document.createElement("button");b.className="del";b.textContent="Ўчириш";b.onclick=delLast;d.appendChild(b)}L.appendChild(d)});
+  if(k===meta.items.length-1){const b=document.createElement("button");b.className="del";b.textContent="Ўчириш";b.onclick=delLast;d.appendChild(b)}const ad=document.createElement("button");ad.className="del";ad.style.background=editN===it.n?"#b42318":"#2e9d50";ad.style.marginLeft="6px";ad.textContent=editN===it.n?"Бекор":"➕ Қўшиш";ad.onclick=()=>{editN=editN===it.n?null:it.n;renderAll();if(editN){scrollTo(0,0);toast("№"+it.n+" га давом этиляпти — расм/видео олиб «Сақлаш»ни босинг")}};d.appendChild(ad);L.appendChild(d)});
  $("xf").innerHTML=XLAB.map((l,k)=>`<div class="fld"><label>${k+1}. ${l}</label><input type="number" inputmode="numeric" min="0" data-x="${k}" value="${meta.x[k]}"></div>`).join("");
  $("rf").innerHTML=RAHBAR.map((r,k)=>`<div class="rah"><div class="nm">${k+1}. ${r[1]} — ${r[0]}</div><div class="two"><div><label>Тунги назорат</label><input type="number" inputmode="numeric" min="0" data-r="${k},0" value="${meta.r[k][0]}"></div><div><label>Кундузги назорат</label><input type="number" inputmode="numeric" min="0" data-r="${k},1" value="${meta.r[k][1]}"></div></div></div>`).join("");
  document.querySelectorAll("[data-x],[data-r]").forEach(e=>{e.onfocus=()=>e.select();e.oninput=readNums});readNums(true);
