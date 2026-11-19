@@ -1,11 +1,11 @@
 {
- "name": "Хафталик ҳисобот — ММҚ ва ХТ",
- "short_name": "Хафталик ҳисобот",
+ "name": "ХТ муҳандиси — Учкўприк ТЭТК",
+ "short_name": "ХТ муҳандиси",
  "start_url": "./index.html",
  "scope": "./",
  "display": "standalone",
- "background_color": "#f3f5f8",
- "theme_color": "#1f3b63",
+ "background_color": "#f3f8f4",
+ "theme_color": "#1b6e35",
  "icons": [
   {
    "src": "icon-192.png",
@@ -16,7 +16,7 @@
    "src": "icon-512.png",
    "sizes": "512x512",
    "type": "image/png",
-   "purpose": "any maskable"
+   "purpose": "any"
   }
  ]
 }
