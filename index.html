@@ -133,7 +133,7 @@ nav button span{font-size:1.6rem}nav button.on{color:#1b6e35;font-weight:bold;ba
  <video id="camV" playsinline muted autoplay style="flex:1;min-height:0;width:100%;object-fit:contain;background:#000"></video>
  <div style="display:flex;align-items:center;justify-content:space-around;padding:16px 10px 26px">
   <button id="camX" style="font-size:1.1rem;padding:14px 18px;border-radius:12px;border:0;background:#444;color:#fff">✕ Ёпиш</button>
-  <button id="camS" style="width:84px;height:84px;border-radius:50%;border:6px solid #fff;background:#e5e5e5"></button>
+  <button id="camF" aria-label="Камерани алмаштириш" style="font-size:1.6rem;padding:10px 14px;border-radius:12px;border:0;background:#444;color:#fff">🔄</button><button id="camS" style="width:84px;height:84px;border-radius:50%;border:6px solid #fff;background:#e5e5e5"></button>
   <button id="camD" style="font-size:1.1rem;padding:14px 18px;border-radius:12px;border:0;background:#15803d;color:#fff">✓ Тайёр</button>
  </div>
 </div>
@@ -287,12 +287,12 @@ $("fVideo").onchange=e=>{video=e.target.files[0]||null;e.target.value="";$("tVid
 const nextN=()=>meta.items.reduce((m,i)=>Math.max(m,i.n),0)+1;
 
 // ---------- илова ичидаги камера ----------
-let camStream=null,camMode="",rec=null,recParts=[],recT0=0,recTimer=null,camLock=null;
+let camFacing="user",camStream=null,camMode="",rec=null,recParts=[],recT0=0,recTimer=null,camLock=null;
 const camTitle=()=>{$("camT").textContent=camMode==="paper"?`📄 Қоғоз: ${paper.length} та олинди`:camMode==="photo"?`📷 Иш жойи: ${photos.length} та расм`:(rec?"🔴 Ёзилмоқда "+Math.floor((Date.now()-recT0)/1000)+" с":"🎥 Ёзиш учун тугмани босинг")};
 async function openCam(mode){camMode=mode;
- try{camStream=await navigator.mediaDevices.getUserMedia({audio:mode==="video",video:{facingMode:{ideal:"environment"},width:{ideal:mode==="video"?1280:1920},height:{ideal:mode==="video"?720:1080}}})}
+ try{camStream=await navigator.mediaDevices.getUserMedia({audio:mode==="video",video:{facingMode:{ideal:camFacing},width:{ideal:mode==="video"?1280:1920},height:{ideal:mode==="video"?720:1080}}})}
  catch(e){toast("Камерага рухсат берилмади: "+e.message,false);return}
- $("camV").srcObject=camStream;$("camS").style.background=mode==="video"?"#d11":"#e5e5e5";$("camS").style.borderRadius="50%";
+ $("camV").srcObject=camStream;$("camV").style.transform=camFacing==="user"?"scaleX(-1)":"";$("camS").style.background=mode==="video"?"#d11":"#e5e5e5";$("camS").style.borderRadius="50%";
  $("camD").classList.toggle("hid",mode==="video");$("camM").classList.remove("hid");camTitle();
  try{camLock=await navigator.wakeLock?.request("screen")}catch(e){}}
 function closeCam(){if(rec&&rec.state!=="inactive")rec.stop();camStream&&camStream.getTracks().forEach(t=>t.stop());camStream=null;$("camM").classList.add("hid");camLock&&camLock.release&&camLock.release();camLock=null}
@@ -310,7 +310,7 @@ $("camS").onclick=async()=>{
   rec.start(1000);recT0=Date.now();recTimer=setInterval(camTitle,500);$("camS").style.borderRadius="18px";camTitle()}
  else rec.stop()};
 $("camD").onclick=closeCam;$("camX").onclick=closeCam;
-$("cPaper").onclick=()=>openCam("paper");$("cPhoto").onclick=()=>openCam("photo");$("cVideo").onclick=()=>openCam("video");
+const oc=m=>{camFacing="user";openCam(m)};$("cPaper").onclick=()=>oc("paper");$("cPhoto").onclick=()=>oc("photo");$("cVideo").onclick=()=>oc("video");$("camF").onclick=async()=>{if(rec)return;camFacing=camFacing==="user"?"environment":"user";const m=camMode;camStream&&camStream.getTracks().forEach(x=>x.stop());camStream=null;camLock&&camLock.release&&camLock.release();camLock=null;await openCam(m)};
 
 $("bSave").onclick=async()=>{
  if(!paper.length&&!photos.length&&!video){toast("Расм ёки видео танланг",false);return}
