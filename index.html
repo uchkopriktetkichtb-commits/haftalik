@@ -366,7 +366,7 @@ function offer(blob,name){$("oName").textContent=name;$("oSize").textContent="Ҳ
  $("oDl").onclick=()=>{const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();a.remove()};
  const file=new File([blob],name,{type:blob.type||"application/octet-stream"});
  $("oSh").classList.toggle("hid",!(navigator.canShare&&navigator.canShare({files:[file]})));
- $("oSh").onclick=()=>navigator.share({files:[file],title:name}).catch(()=>{});$("oX").onclick=()=>$("outM").classList.add("hid")}
+ $("oSh").onclick=async()=>{try{await navigator.share({files:[file],title:name})}catch(e){if(e&&e.name==="AbortError")return;$("oDl").click();toast("Бу турдаги файлни тўғридан-тўғри юбориб бўлмади. Файл телефонга юкланди — Telegram'да 📎 → Файл → Загрузки орқали юборинг.",false)}};$("oX").onclick=()=>$("outM").classList.add("hid")}
 async function run(btn,fn){btn.disabled=true;const t=btn.textContent;btn.textContent="⏳ Тайёрланмоқда…";try{await fn()}catch(e){toast("Хато: "+e.message,false)}btn.textContent=t;btn.disabled=false}
 $("gX").onclick=e=>run(e.currentTarget,async()=>offer(await buildXlsx(),XN()));
 $("gW").onclick=e=>run(e.currentTarget,async()=>offer(await buildDocx(),WN()));
