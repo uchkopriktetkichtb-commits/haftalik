@@ -111,6 +111,7 @@ nav button span{font-size:1.6rem}nav button.on{color:#1b6e35;font-weight:bold;ba
  </div>
  <div class="card">
   <div class="note" id="stor"></div>
+  <label style="display:flex;align-items:center;gap:10px;font-size:1.05rem;margin:12px 0"><input type="checkbox" id="galOn" style="width:24px;height:24px"> Расм ва видеоларни галереяга ҳам сақлаш</label>
   <button class="btn red" id="bClear">🗑 Шу ҳафта маълумотларини ўчириш</button>
  </div>
 </section>
@@ -314,6 +315,9 @@ const oc=m=>{camFacing="user";openCam(m)};$("cPaper").onclick=()=>oc("paper");$(
 $("camF").onclick=async()=>{if(rec){camFacing=camFacing==="user"?"environment":"user";try{await swapVideo()}catch(e){toast("Камера алмашмади: "+e.message,false)}return}camFacing=camFacing==="user"?"environment":"user";const m=camMode;camStream&&camStream.getTracks().forEach(x=>x.stop());camStream=null;camLock&&camLock.release&&camLock.release();camLock=null;await openCam(m)};
 
 let editN=null;
+const galOn=()=>{try{return localStorage.getItem("gal")!=="0"}catch(e){return true}};
+function dlBlob(b,name){const a=document.createElement("a");a.href=URL.createObjectURL(b);a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),20000)}
+async function toGallery(names,pages,n){if(!galOn())return;const pre="XT_"+$("day").value+"_";let i=0;for(const pg of pages){i++;dlBlob(pg,pre+n+"_qogoz"+i+".jpg");await new Promise(r=>setTimeout(r,500))}for(const nm of names){if(/\.pdf$/i.test(nm))continue;const b=await dbGet("f",fkey(nm));if(!b)continue;dlBlob(b,pre+nm.replace(",","_"));await new Promise(r=>setTimeout(r,500))}}
 $("bSave").onclick=async()=>{
  if(!paper.length&&!photos.length&&!video){toast("Расм ёки видео танланг",false);return}
  $("bSave").disabled=true;let lock=null;try{lock=await navigator.wakeLock?.request("screen")}catch(e){}
@@ -330,6 +334,7 @@ $("bSave").onclick=async()=>{
   if(old){old.files=old.files.concat(files);old.pages=(old.pages||0)+paper.length;old.photos=(old.photos||0)+photos.length;if(video){old.vcount=(old.vcount||(old.video?1:0))+1;old.video=true}}
   else meta.items.push({n,date:$("day").value,files,pages:paper.length,photos:photos.length,video:!!video,vcount:video?1:0});
   await saveMeta();
+  try{await toGallery(files,paper.map(p=>p.blob),n)}catch(e){}
   paper=[];photos=[];video=null;thumbs($("tPaper"),paper);thumbs($("tPhoto"),photos);$("tVideo").textContent="";
   editN=null;renderAll();toast("№"+n+(old?" га қўшилди.":" сақланди.")+info)}
  catch(e){toast("Хато: "+e.message,false)}
@@ -350,7 +355,7 @@ function renderAll(){
  $("rf").innerHTML=RAHBAR.map((r,k)=>`<div class="rah"><div class="nm">${k+1}. ${r[1]} — ${r[0]}</div><div class="two"><div><label>Тунги назорат</label><input type="number" inputmode="numeric" min="0" data-r="${k},0" value="${meta.r[k][0]}"></div><div><label>Кундузги назорат</label><input type="number" inputmode="numeric" min="0" data-r="${k},1" value="${meta.r[k][1]}"></div></div></div>`).join("");
  document.querySelectorAll("[data-x],[data-r]").forEach(e=>{e.onfocus=()=>e.select();e.oninput=readNums});readNums(true);
  const nf=meta.items.reduce((s,i)=>s+i.files.length,0);$("sumR").textContent=`Ҳафта ${dm(WS)}–${endDmy()}: ${meta.items.length} та текширув, ${nf} та файл`;
- navigator.storage?.estimate?.().then(e=>$("stor").textContent="Телефонда банд: "+mb(e.usage)+" / мавжуд: "+mb(e.quota))}
+ navigator.storage?.estimate?.().then(e=>$("stor").textContent="Телефонда банд: "+mb(e.usage)+" / мавжуд: "+mb(e.quota)+(window.__pers?" · 🔒 маълумотлар доимий сақланади":" · ⚠ доимий сақлашга рухсат берилмаган"))}
 let svT;function readNums(noSave){
  document.querySelectorAll("[data-x]").forEach(e=>meta.x[+e.dataset.x]=+e.value||0);
  document.querySelectorAll("[data-r]").forEach(e=>{const[a,b]=e.dataset.r.split(",");meta.r[a][b]=+e.value||0});
@@ -389,7 +394,8 @@ $("bClear").onclick=async()=>{if(!await ask("Ҳафта "+dm(WS)+"–"+dm(WE)+" 
 // ---------- навигация ----------
 ["n1","n2","n3"].forEach((b,k)=>$(b).onclick=()=>{["s1","s2","s3"].forEach((s,j)=>$(s).classList.toggle("hid",j!==k));["n1","n2","n3"].forEach((x,j)=>$(x).classList.toggle("on",j===k));scrollTo(0,0)});
 $("day").value=iso(new Date());$("day").onchange=setDay;
-navigator.storage?.persist?.();
+const askPersist=async()=>{try{if(navigator.storage&&navigator.storage.persist){window.__pers=(await navigator.storage.persisted())||(await navigator.storage.persist());}}catch(e){}};askPersist();document.addEventListener("click",askPersist);
+try{$("galOn").checked=galOn();$("galOn").onchange=e=>{try{localStorage.setItem("gal",e.target.checked?"1":"0")}catch(x){}}}catch(e){}
 if("serviceWorker" in navigator&&location.protocol.startsWith("http"))navigator.serviceWorker.register("sw.js");
 setDay().catch(e=>toast("Хотира очилмади: "+e.message,false));
 </script>
